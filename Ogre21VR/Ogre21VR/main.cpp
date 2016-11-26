@@ -7,6 +7,11 @@ int main(void)
 
 	Renderer->initVRHardware();
 
+	//resources here
+
+	Renderer->declareHlmsLibrary("HLMS");
+	Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups();
+
 	while (Renderer->isRunning())
 	{
 		Renderer->updateTracking();

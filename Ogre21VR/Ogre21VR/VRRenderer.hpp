@@ -1,7 +1,21 @@
 #pragma once
 
 #include <memory>
+#include <array>
+#include <thread>
+
 #include <OGRE/Ogre.h>
+#include <OGRE/OgreSceneNode.h>
+#include <OGRE/OgreCamera.h>
+#include <OGRE/OgreMeshManager.h>
+#include <OGRE/OgreMeshManager2.h>
+#include <OGRE/OgreMesh.h>
+#include <OGRE/OgreMesh2.h>
+#include <OGRE/Compositor/OgreCompositorManager2.h>
+#include <OGRE/Compositor/OgreCompositorWorkspaceDef.h>
+#include <OGRE/Hlms/Pbs/OgreHlmsPbs.h>
+#include <OGRE/Hlms/Unlit/OgreHlmsUnlit.h>
+#include <OGRE/OgreHlmsManager.h>
 
 class VRRenderer
 {
@@ -9,8 +23,10 @@ public:
 	virtual ~VRRenderer() {}
 
 	VRRenderer() :
+		root{ nullptr },
+		threads{ uint8_t(std::thread::hardware_concurrency() / 2) },
 		running{ false },
-		root{ nullptr }
+		smgr{ nullptr }
 	{
 		initOgre();
 	}
@@ -27,6 +43,18 @@ public:
 		root->setRenderSystem(root->getRenderSystemByName("OpenGL 3+ Rendering Subsystem"));
 		root->initialise(false);
 		window = root->createRenderWindow("Window", 800, 600, false, nullptr);
+
+		smgr = root->createSceneManager(Ogre::ST_GENERIC, threads, Ogre::INSTANCING_CULLING_THREADED);
+
+		cameraRig = smgr->getRootSceneNode()->createChildSceneNode();
+
+		attachCameraToRig(stereoCameras[0] = smgr->createCamera("LeftEyeVR"));
+		attachCameraToRig(stereoCameras[1] = smgr->createCamera("RightEyeVR"));
+		attachCameraToRig(monoCamera = smgr->createCamera("MonoCamera"));
+
+		//Some stereo disparity. this value should be changed by the child class anyway
+		stereoCameras[0]->setPosition(-0.063f / 2, 0, 0);
+		stereoCameras[0]->setPosition(+0.063f / 2, 0, 0);
 
 		//everything is right :
 		running = true;
@@ -47,11 +75,96 @@ public:
 		return running;
 	}
 
+	Ogre::SceneManager* getSmgr()
+	{
+		return smgr;
+	}
+
+	decltype(auto) loadV1mesh(Ogre::String meshName)
+	{
+		return Ogre::v1::MeshManager::getSingleton()
+			.load(meshName,
+				  Ogre::ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME,
+				  Ogre::v1::HardwareBuffer::HBU_STATIC,
+				  Ogre::v1::HardwareBuffer::HBU_STATIC);
+	}
+
+	decltype(auto) asV2mesh(Ogre::String meshName,
+							Ogre::String ResourceGroup = Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+							Ogre::String sufix = " V2",
+							bool halfPos = true,
+							bool halfTextCoords = true,
+							bool qTangents = true)
+	{
+		//Get the V1 mesh
+		auto v1mesh = loadV1mesh(meshName);
+
+		//Convert it as a V2 mesh
+		auto mesh = Ogre::MeshManager::getSingletonPtr()->createManual(meshName + sufix, ResourceGroup);
+		mesh->importV1(v1mesh.get(), halfPos, halfTextCoords, qTangents);
+
+		//Unload the useless V1 mesh
+		v1mesh->unload();
+		v1mesh.setNull();
+
+		//Return the shared pointer to the new mesh
+		return mesh;
+	}
+
+	static void declareHlmsLibrary(const Ogre::String&& path)
+	{
+#ifdef _DEBUG
+		if (std::string(SL) != "GLSL" || std::string(Ogre::Root::getSingleton().getRenderSystem()->getName()) != "OpenGL 3+ Rendering Subsystem")
+			throw std::runtime_error("This function is OpenGL only. Please use the RenderSytem_GL3+ in the Ogre configuration!");
+#endif
+		Ogre::String hlmsFolder = path;
+
+		//The hlmsFolder can come from a configuration file where it could be "empty" or set to "." or lacking the trailing "/"
+		if (hlmsFolder.empty()) hlmsFolder = "./";
+		else if (hlmsFolder[hlmsFolder.size() - 1] != '/') hlmsFolder += "/";
+
+		//Get the hlmsManager (not a singleton by itself, but accessible via Root)
+		auto hlmsManager = Ogre::Root::getSingleton().getHlmsManager();
+
+		//Define the shader library to use for HLMS
+		auto library = Ogre::ArchiveVec();
+		auto archiveLibrary = Ogre::ArchiveManager::getSingletonPtr()->load(hlmsFolder + "Hlms/Common/" + SL, "FileSystem", true);
+		library.push_back(archiveLibrary);
+
+		//Define "unlit" and "PBS" (physics based shader) HLMS
+		auto archiveUnlit = Ogre::ArchiveManager::getSingletonPtr()->load(hlmsFolder + "Hlms/Unlit/" + SL, "FileSystem", true);
+		auto archivePbs = Ogre::ArchiveManager::getSingletonPtr()->load(hlmsFolder + "Hlms/Pbs/" + SL, "FileSystem", true);
+		auto hlmsUnlit = OGRE_NEW Ogre::HlmsUnlit(archiveUnlit, &library);
+		auto hlmsPbs = OGRE_NEW Ogre::HlmsPbs(archivePbs, &library);
+		hlmsManager->registerHlms(hlmsUnlit);
+		hlmsManager->registerHlms(hlmsPbs);
+	}
+
 private:
+
+	void attachCameraToRig(Ogre::Camera* camera)
+	{
+		if (auto parent = camera->getParentSceneNode())
+			parent->detachObject(camera);
+
+		if (cameraRig)
+			cameraRig->attachObject(camera);
+	}
+
 	std::unique_ptr <Ogre::Root> root;
+	uint8_t threads;
+
+	static constexpr const char* const SL{ "GLSL" };
+
 protected:
 	bool running;
 	Ogre::RenderWindow* window;
+	Ogre::SceneManager* smgr;
+
+	std::array<Ogre::Camera*, 2> stereoCameras;
+	Ogre::Camera* monoCamera;
+
+	Ogre::SceneNode* cameraRig;
 };
 
 class OculusVRRenderer : public VRRenderer

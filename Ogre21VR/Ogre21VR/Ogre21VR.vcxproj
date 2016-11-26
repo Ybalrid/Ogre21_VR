@@ -103,7 +103,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>C:\Oculus\AnnwvynSDK64\OculusSDK\LibOVR\Include;C:\Oculus\Ogre\ogre\build\sdk\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Oculus\AnnwvynSDK64\OculusSDK\LibOVR\Include;C:\Oculus\Ogre\ogre\build\sdk\include\OGRE\;C:\Oculus\Ogre\ogre\build\sdk\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
