@@ -25,8 +25,11 @@ public:
 	VRRenderer() :
 		root{ nullptr },
 		threads{ uint8_t(std::thread::hardware_concurrency() / 2) },
+		monoscopicCompositor{ "MonoscopicWorspace" },
+		stereoscopicCompositor{ "StereoscopicWorkspace" },
 		running{ false },
-		smgr{ nullptr }
+		smgr{ nullptr },
+		backgroundColor{ 0.2f, 0.4f, 0.6f }
 	{
 		initOgre();
 	}
@@ -42,7 +45,7 @@ public:
 		root = std::make_unique<Ogre::Root>(pluginFile);
 		root->setRenderSystem(root->getRenderSystemByName("OpenGL 3+ Rendering Subsystem"));
 		root->initialise(false);
-		window = root->createRenderWindow("Window", 800, 600, false, nullptr);
+		window = root->createRenderWindow("Window", 1024, 768, false, nullptr);
 
 		smgr = root->createSceneManager(Ogre::ST_GENERIC, threads, Ogre::INSTANCING_CULLING_THREADED);
 
@@ -55,6 +58,10 @@ public:
 		//Some stereo disparity. this value should be changed by the child class anyway
 		stereoCameras[0]->setPosition(-0.063f / 2, 0, 0);
 		stereoCameras[0]->setPosition(+0.063f / 2, 0, 0);
+
+		auto compositor = root->getCompositorManager2();
+		if (!compositor->hasWorkspaceDefinition(monoscopicCompositor)) compositor->createBasicWorkspaceDef(monoscopicCompositor, backgroundColor);
+		compositor->addWorkspace(smgr, window, monoCamera, monoscopicCompositor, true);
 
 		//everything is right :
 		running = true;
@@ -117,7 +124,7 @@ public:
 		if (std::string(SL) != "GLSL" || std::string(Ogre::Root::getSingleton().getRenderSystem()->getName()) != "OpenGL 3+ Rendering Subsystem")
 			throw std::runtime_error("This function is OpenGL only. Please use the RenderSytem_GL3+ in the Ogre configuration!");
 #endif
-		Ogre::String hlmsFolder = path;
+		auto hlmsFolder = path;
 
 		//The hlmsFolder can come from a configuration file where it could be "empty" or set to "." or lacking the trailing "/"
 		if (hlmsFolder.empty()) hlmsFolder = "./";
@@ -140,6 +147,11 @@ public:
 		hlmsManager->registerHlms(hlmsPbs);
 	}
 
+	Ogre::Root* getOgreRoot() const
+	{
+		return root.get();
+	}
+
 private:
 
 	void attachCameraToRig(Ogre::Camera* camera)
@@ -157,6 +169,9 @@ private:
 	static constexpr const char* const SL{ "GLSL" };
 
 protected:
+
+	const Ogre::IdString monoscopicCompositor, stereoscopicCompositor;
+
 	bool running;
 	Ogre::RenderWindow* window;
 	Ogre::SceneManager* smgr;
@@ -165,6 +180,8 @@ protected:
 	Ogre::Camera* monoCamera;
 
 	Ogre::SceneNode* cameraRig;
+
+	Ogre::ColourValue backgroundColor;
 };
 
 class OculusVRRenderer : public VRRenderer
@@ -181,6 +198,9 @@ public:
 			running = false;
 			return;
 		}
+
+		getOgreRoot()->renderOneFrame();
+
 		messagePump();
 	}
 
