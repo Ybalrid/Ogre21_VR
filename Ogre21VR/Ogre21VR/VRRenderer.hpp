@@ -1,6 +1,13 @@
 #pragma once
-//#include <gl/glew.h>
+#include <Windows.h>
+#include <GL/gl3w.h>
+#include <GLFW/glfw3.h>
 
+#define GLFW_EXPOSE_NATIVE_WIN32
+#define GLFW_EXPOSE_NAVIVE_WGL
+#include <GLFW/glfw3native.h>
+
+#include <iostream>
 #include <memory>
 #include <array>
 #include <thread>
@@ -23,29 +30,14 @@
 #include <OVR_CAPI_GL.h>
 #include <Extras/OVR_Math.h>
 
-//#define GL_TEXTURE_2D 0x0DE1
-//
-//void * (*glCopyImageSubData)(uint32_t, unsigned int, int32_t, int32_t, int32_t, int32_t, uint32_t, unsigned int, int32_t, int32_t, int32_t, int32_t,
-//							 uint32_t, uint32_t, uint32_t);
-//
-//void *GetAnyGLFuncAddress(const char *name)
-//{
-//	void *p = (void *)wglGetProcAddress(name);
-//	if (p == 0 ||
-//		(p == (void*)0x1) || (p == (void*)0x2) || (p == (void*)0x3) ||
-//		(p == (void*)-1))
-//	{
-//		HMODULE module = LoadLibraryA("opengl32.dll");
-//		p = (void *)GetProcAddress(module, name);
-//	}
-//
-//	return p;
-//}
+auto logToOgre = [](const std::string& message) { Ogre::LogManager::getSingleton().logMessage(message); };
 
 class VRRenderer
 {
 public:
-	virtual ~VRRenderer() {}
+	virtual ~VRRenderer()
+	{
+	}
 
 	VRRenderer() :
 		root{ nullptr },
@@ -57,17 +49,24 @@ public:
 		backgroundColor{ 0.2f, 0.4f, 0.6f },
 		AALevel{ 4 }
 	{
+		width = 1024;
+		height = 768;
+		windowName = "Window";
+
 		initOgre();
 
-		//glCopyImageSubData = reinterpret_cast<void* (*)(uint32_t, unsigned int, int32_t, int32_t, int32_t, int32_t, uint32_t, unsigned int, int32_t, int32_t, int32_t, int32_t, uint32_t, uint32_t, uint32_t)> (0x00000000660C81A0);
+		if (gl3wInit())
+		{
+			throw std::runtime_error("call to gl3wInit is unsuccessful");
+		}
 
-		//if (auto status = glewInit() != GLEW_OK)
-		//{
-		//	auto errorText = (char*)glewGetErrorString(status);
-		//	Ogre::LogManager::getSingleton().logMessage(errorText);
-		//	running = false;
-		//	throw std::runtime_error("Glew did not get fun...");
-		//}
+		if (!gl3wIsSupported(4, 3))
+		{
+			logToOgre("Cant call GL4.3 funcitons... :'(");
+			throw std::runtime_error("Cannot call glCopyImageSubData because GL 4.3 is not supported");
+		}
+
+		logToOgre(std::string("OpenGL : ") + (char*)glGetString(GL_VERSION));
 	}
 
 	void initOgre()
@@ -78,10 +77,29 @@ public:
 #else
 		pluginFile = "plugins.cfg";
 #endif
-		root = std::make_unique<Ogre::Root>(pluginFile);
+		root = std::make_unique<Ogre::Root>(pluginFile, "dummy.cfg");
 		root->setRenderSystem(root->getRenderSystemByName("OpenGL 3+ Rendering Subsystem"));
 		root->initialise(false);
-		window = root->createRenderWindow("Window", 1024, 768, false, nullptr);
+
+		Ogre::NameValuePairList windowParameters;
+
+		//Use GLFW to create the window and the opengl context
+		glfwInit();
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+		GLFWwindow* glfWindow = glfwCreateWindow(width, height, windowName.c_str(), nullptr, nullptr);
+		glfwMakeContextCurrent(glfWindow);
+
+		//HGLRC context{ glfwGet
+		HGLRC context{ wglGetCurrentContext() };
+		HWND handle{ glfwGetWin32Window(glfWindow) };
+
+		windowParameters["externalWindowHandle"] = std::to_string(size_t(handle));
+		windowParameters["externalGLContext"] = std::to_string(size_t(context));
+
+		window = root->createRenderWindow(windowName, width, height, false, &windowParameters);
 
 		smgr = root->createSceneManager(Ogre::ST_GENERIC, threads, Ogre::INSTANCING_CULLING_THREADED);
 
@@ -183,7 +201,7 @@ public:
 		auto hlmsPbs = OGRE_NEW Ogre::HlmsPbs(archivePbs, &library);
 		hlmsManager->registerHlms(hlmsUnlit);
 		hlmsManager->registerHlms(hlmsPbs);
-	}
+}
 
 	Ogre::Root* getOgreRoot() const
 	{
@@ -203,8 +221,11 @@ private:
 
 	std::unique_ptr <Ogre::Root> root;
 	uint8_t threads;
-
+	int width;
+	int height;
+	std::string windowName;
 	static constexpr const char* const SL{ "GLSL" };
+	GLFWwindow* glfWindow;
 
 protected:
 
@@ -213,14 +234,10 @@ protected:
 	bool running;
 	Ogre::RenderWindow* window;
 	Ogre::SceneManager* smgr;
-
 	std::array<Ogre::Camera*, 2> stereoCameras;
 	Ogre::Camera* monoCamera;
-
 	Ogre::SceneNode* cameraRig;
-
 	Ogre::ColourValue backgroundColor;
-
 	uint8_t AALevel;
 };
 
@@ -233,7 +250,9 @@ public:
 		layers{ nullptr },
 		currentFrameDisplayTime{ 0 },
 		frameCounter{ 0 },
-		renderTextureGLID{ 0 }
+		currentIndex{ 0 },
+		renderTextureGLID{ 0 },
+		oculusRenderTextureGLID{ 0 }
 	{
 		ovr_Initialize(nullptr);
 
@@ -258,6 +277,7 @@ public:
 		ovr_Destroy(session);
 		ovr_Shutdown();
 	}
+
 	int toto = 0;
 	void renderAndSubmitFrame() override
 	{
@@ -280,6 +300,8 @@ public:
 		ovr_GetTextureSwapChainCurrentIndex(session, textureSwapchain, &currentIndex);
 		ovr_GetTextureSwapChainBufferGL(session, textureSwapchain, currentIndex, &oculusRenderTextureGLID);
 
+		std::cerr << "Frame " << frameCounter << ": copy from " << renderTextureGLID << " to " << oculusRenderTextureGLID << '\n';
+
 		glCopyImageSubData(renderTextureGLID, GL_TEXTURE_2D, 0, 0, 0, 0,
 						   oculusRenderTextureGLID, GL_TEXTURE_2D, 0, 0, 0, 0,
 						   bufferSize.w, bufferSize.h, 1);
@@ -287,7 +309,7 @@ public:
 		layers = &layer.Header;
 
 		ovr_CommitTextureSwapChain(session, textureSwapchain);
-		ovr_SubmitFrame(session, frameCounter, nullptr, &layers, 1);
+		ovr_SubmitFrame(session, /*frameCounter*/0, nullptr, &layers, 1);
 	}
 
 	void updateTracking() override
@@ -295,7 +317,7 @@ public:
 		//get tracking information
 		//apply it to the camera
 
-		ts = ovr_GetTrackingState(session, currentFrameDisplayTime = ovr_GetPredictedDisplayTime(session, ++frameCounter), ovrTrue);
+		ts = ovr_GetTrackingState(session, currentFrameDisplayTime = ovr_GetPredictedDisplayTime(session, /*++frameCounter*/0), ovrTrue);
 
 		ovr_CalcEyePoses(pose, offset.data(), layer.RenderPose);
 		cameraRig->setOrientation(oculusToOgreQuat(pose.Orientation));
@@ -339,7 +361,7 @@ public:
 		auto textureManager = getOgreRoot()->getTextureManager();
 
 		rttTexture = textureManager->createManual(rttTextureName, Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, Ogre::TEX_TYPE_2D, bufferSize.w, bufferSize.h, 0,
-												  Ogre::PF_R8G8B8A8, Ogre::TU_RENDERTARGET, nullptr, true, AALevel);
+												  Ogre::PF_R8G8B8A8, Ogre::TU_RENDERTARGET);
 
 		rttTexture->getCustomAttribute("GLID", &renderTextureGLID);
 
@@ -393,20 +415,6 @@ public:
 		//Assign the defined viewport to the layer
 		layer.Viewport[0] = leftRect;
 		layer.Viewport[1] = rightRect;
-
-		//Get the projection matrix for the desired near/far clipping from Oculus and apply them to the eyeCameras
-		//updateProjectionMatrix();
-
-		//Make sure that the perf hud will not show up by himself...
-		//perfHudMode = ovrPerfHud_Off;
-		//ovr_SetInt(Oculus->getSession(), "PerfHudMode", perfHudMode);
-
-		//if (auto status = glewInit() != GLEW_OK)
-		//{
-		//	auto errorText = (char*)glewGetErrorString(status);
-		//	Ogre::LogManager::getSingleton().logMessage(errorText);
-		//	running = false;
-		//}
 	}
 
 private:
@@ -432,7 +440,7 @@ private:
 	static constexpr const char* const rttTextureName{ "RTT_TEX_HMD_BUFFER" };
 
 	//TODO this should be a GLuint. Change that when some GL
-	typedef unsigned int GLuint;
+	//typedef unsigned int GLuint;
 
 	GLuint renderTextureGLID;
 	GLuint oculusRenderTextureGLID;
