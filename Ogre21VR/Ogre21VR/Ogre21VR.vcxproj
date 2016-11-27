@@ -155,8 +155,11 @@
   <ItemGroup>
     <ClCompile Include="gl3w.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="OculusVRRenderer.cpp" />
+    <ClCompile Include="VRRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="OculusVRRenderer.hpp" />
     <ClInclude Include="VRRenderer.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
