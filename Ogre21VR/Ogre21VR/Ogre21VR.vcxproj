@@ -103,13 +103,13 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>C:\Oculus\AnnwvynSDK64\OculusSDK\LibOVR\Include;C:\Oculus\Ogre\ogre\build\sdk\include\OGRE\;C:\Oculus\Ogre\ogre\build\sdk\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;C:\Oculus\Ogre\ogre\build\sdk\include\OGRE;C:\Oculus\AnnwvynSDK64\OculusSDK\LibOVR\Include;C:\Oculus\AnnwvynSDK64\glew\include;C:\Oculus\Ogre\ogre\build\sdk\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Oculus\Ogre\ogre\build\sdk\lib\debug;C:\Oculus\Ogre\ogre\build\sdk\lib\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>OgreMain_d.lib;OgreHlmsPbs_d.lib;OgreHlmsUnlit_d.lib;OgreOverlay_d.lib;OgreMeshLodGenerator_d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Oculus\Ogre\ogre\build\sdk\lib\release\opt;C:\Oculus\Ogre\ogre\build\sdk\lib\debug\opt;C:\Oculus\Ogre\ogre\build\sdk\lib\debug;C:\Oculus\Ogre\ogre\build\sdk\lib\release;C:\Oculus\AnnwvynSDK64\OculusSDK\LibOVR\Lib\Windows\x64\Release\VS2015;C:\Oculus\AnnwvynSDK64\glew\lib\Release\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>OgreMain_d.lib;OgreHlmsPbs_d.lib;OgreHlmsUnlit_d.lib;OgreOverlay_d.lib;OgreMeshLodGenerator_d.lib;RenderSystem_GL3Plus_d.lib;LibOVR.lib;%(AdditionalDependencies);glew32s.lib;glew32.lib;ws2_32.lib;Winmm.lib;Setupapi.lib;opengl32.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -141,15 +141,15 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>C:\Oculus\AnnwvynSDK64\OculusSDK\LibOVR\Include;C:\Oculus\Ogre\ogre\build\sdk\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;C:\Oculus\Ogre\ogre\build\sdk\include\OGRE;C:\Oculus\AnnwvynSDK64\OculusSDK\LibOVR\Include;C:\Oculus\AnnwvynSDK64\glew\include;C:\Oculus\Ogre\ogre\build\sdk\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Oculus\Ogre\ogre\build\sdk\lib\debug;C:\Oculus\Ogre\ogre\build\sdk\lib\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>OgreMain.lib;OgreHlmsPbs.lib;OgreHlmsUnlit.lib;OgreOverlay.lib;OgreMeshLodGenerator.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Oculus\Ogre\ogre\build\sdk\lib\release\opt;C:\Oculus\Ogre\ogre\build\sdk\lib\debug\opt;C:\Oculus\Ogre\ogre\build\sdk\lib\debug;C:\Oculus\Ogre\ogre\build\sdk\lib\release;C:\Oculus\AnnwvynSDK64\OculusSDK\LibOVR\Lib\Windows\x64\Release\VS2015;C:\Oculus\AnnwvynSDK64\glew\lib\Release\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>OgreMain.lib;OgreHlmsPbs.lib;OgreHlmsUnlit.lib;OgreOverlay.lib;OgreMeshLodGenerator.lib;RenderSystem_GL3Plus.lib;LibOVR.lib;%(AdditionalDependencies);ws2_32.lib;Winmm.lib;Setupapi.lib;glew32.lib;opengl32.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

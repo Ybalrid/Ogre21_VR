@@ -1,4 +1,5 @@
 #pragma once
+//#include <gl/glew.h>
 
 #include <memory>
 #include <array>
@@ -16,6 +17,30 @@
 #include <OGRE/Hlms/Pbs/OgreHlmsPbs.h>
 #include <OGRE/Hlms/Unlit/OgreHlmsUnlit.h>
 #include <OGRE/OgreHlmsManager.h>
+#include <OGRE/OgreHlms.h>
+
+#include <OVR_CAPI.h>
+#include <OVR_CAPI_GL.h>
+#include <Extras/OVR_Math.h>
+
+//#define GL_TEXTURE_2D 0x0DE1
+//
+//void * (*glCopyImageSubData)(uint32_t, unsigned int, int32_t, int32_t, int32_t, int32_t, uint32_t, unsigned int, int32_t, int32_t, int32_t, int32_t,
+//							 uint32_t, uint32_t, uint32_t);
+//
+//void *GetAnyGLFuncAddress(const char *name)
+//{
+//	void *p = (void *)wglGetProcAddress(name);
+//	if (p == 0 ||
+//		(p == (void*)0x1) || (p == (void*)0x2) || (p == (void*)0x3) ||
+//		(p == (void*)-1))
+//	{
+//		HMODULE module = LoadLibraryA("opengl32.dll");
+//		p = (void *)GetProcAddress(module, name);
+//	}
+//
+//	return p;
+//}
 
 class VRRenderer
 {
@@ -29,9 +54,20 @@ public:
 		stereoscopicCompositor{ "StereoscopicWorkspace" },
 		running{ false },
 		smgr{ nullptr },
-		backgroundColor{ 0.2f, 0.4f, 0.6f }
+		backgroundColor{ 0.2f, 0.4f, 0.6f },
+		AALevel{ 4 }
 	{
 		initOgre();
+
+		//glCopyImageSubData = reinterpret_cast<void* (*)(uint32_t, unsigned int, int32_t, int32_t, int32_t, int32_t, uint32_t, unsigned int, int32_t, int32_t, int32_t, int32_t, uint32_t, uint32_t, uint32_t)> (0x00000000660C81A0);
+
+		//if (auto status = glewInit() != GLEW_OK)
+		//{
+		//	auto errorText = (char*)glewGetErrorString(status);
+		//	Ogre::LogManager::getSingleton().logMessage(errorText);
+		//	running = false;
+		//	throw std::runtime_error("Glew did not get fun...");
+		//}
 	}
 
 	void initOgre()
@@ -60,7 +96,9 @@ public:
 		stereoCameras[0]->setPosition(+0.063f / 2, 0, 0);
 
 		auto compositor = root->getCompositorManager2();
-		if (!compositor->hasWorkspaceDefinition(monoscopicCompositor)) compositor->createBasicWorkspaceDef(monoscopicCompositor, backgroundColor);
+		if (!compositor->hasWorkspaceDefinition(monoscopicCompositor))
+			compositor->createBasicWorkspaceDef(monoscopicCompositor, backgroundColor);
+
 		compositor->addWorkspace(smgr, window, monoCamera, monoscopicCompositor, true);
 
 		//everything is right :
@@ -182,33 +220,220 @@ protected:
 	Ogre::SceneNode* cameraRig;
 
 	Ogre::ColourValue backgroundColor;
+
+	uint8_t AALevel;
 };
 
 class OculusVRRenderer : public VRRenderer
 {
 public:
-	OculusVRRenderer() : VRRenderer{}
+	OculusVRRenderer() : VRRenderer{},
+		mirrorTexture{ nullptr },
+		textureSwapchain{ nullptr },
+		layers{ nullptr },
+		currentFrameDisplayTime{ 0 },
+		frameCounter{ 0 },
+		renderTextureGLID{ 0 }
 	{
+		ovr_Initialize(nullptr);
+
+		std::stringstream clientIdentifier;
+		clientIdentifier << "EngineName: no f---ing engine\n";
+		clientIdentifier << "EngineVersion: 666\n";
+
+		ovr_IdentifyClient(clientIdentifier.str().c_str());
+
+		if (ovr_Create(&session, &luid) != ovrSuccess)
+		{
+			running = false;
+			ovr_Shutdown();
+			return;
+		}
+
+		hmdDesc = ovr_GetHmdDesc(session);
 	}
 
+	~OculusVRRenderer()
+	{
+		ovr_Destroy(session);
+		ovr_Shutdown();
+	}
+	int toto = 0;
 	void renderAndSubmitFrame() override
 	{
+		toto++;
+		if (toto == 42)
+		{
+			rttTexture->getBuffer()->getRenderTarget()->writeContentsToFile("shouldBeBlue.bmp");
+		}
 		if (window->isClosed())
 		{
 			running = false;
 			return;
 		}
 
+		//Texture should be written at this point
 		getOgreRoot()->renderOneFrame();
 
 		messagePump();
+
+		ovr_GetTextureSwapChainCurrentIndex(session, textureSwapchain, &currentIndex);
+		ovr_GetTextureSwapChainBufferGL(session, textureSwapchain, currentIndex, &oculusRenderTextureGLID);
+
+		glCopyImageSubData(renderTextureGLID, GL_TEXTURE_2D, 0, 0, 0, 0,
+						   oculusRenderTextureGLID, GL_TEXTURE_2D, 0, 0, 0, 0,
+						   bufferSize.w, bufferSize.h, 1);
+
+		layers = &layer.Header;
+
+		ovr_CommitTextureSwapChain(session, textureSwapchain);
+		ovr_SubmitFrame(session, frameCounter, nullptr, &layers, 1);
 	}
 
 	void updateTracking() override
 	{
+		//get tracking information
+		//apply it to the camera
+
+		ts = ovr_GetTrackingState(session, currentFrameDisplayTime = ovr_GetPredictedDisplayTime(session, ++frameCounter), ovrTrue);
+
+		ovr_CalcEyePoses(pose, offset.data(), layer.RenderPose);
+		cameraRig->setOrientation(oculusToOgreQuat(pose.Orientation));
+		cameraRig->setPosition(oculusToOgreVect3(pose.Position));
+	}
+
+	Ogre::Quaternion oculusToOgreQuat(const ovrQuatf& q)
+	{
+		return Ogre::Quaternion{ q.w, q.x, q.y, q.z };
+	}
+
+	Ogre::Vector3 oculusToOgreVect3(const ovrVector3f& v)
+	{
+		return Ogre::Vector3{ v.x, v.y, v.z };
 	}
 
 	void initVRHardware() override
 	{
+		const auto texSizeL = ovr_GetFovTextureSize(session, ovrEye_Left, hmdDesc.DefaultEyeFov[0], 1);
+		const auto texSizeR = ovr_GetFovTextureSize(session, ovrEye_Right, hmdDesc.DefaultEyeFov[1], 1);
+
+		bufferSize.w = texSizeL.w + texSizeR.w;
+		bufferSize.h = std::max(texSizeL.h, texSizeR.h);
+
+		ovrTextureSwapChainDesc textureSwapChainDesc = {};
+		textureSwapChainDesc.Type = ovrTexture_2D;
+		textureSwapChainDesc.ArraySize = 1;
+		textureSwapChainDesc.Format = OVR_FORMAT_R8G8B8A8_UNORM_SRGB;
+		textureSwapChainDesc.Width = bufferSize.w;
+		textureSwapChainDesc.Height = bufferSize.h;
+		textureSwapChainDesc.MipLevels = 1;
+		textureSwapChainDesc.SampleCount = 1;
+		textureSwapChainDesc.StaticImage = ovrFalse;
+
+		if (ovr_CreateTextureSwapChainGL(session, &textureSwapChainDesc, &textureSwapchain) != ovrSuccess)
+		{
+			//TODO handle problem here
+			throw std::runtime_error("texture swapchain cannot be created!");
+		}
+
+		auto textureManager = getOgreRoot()->getTextureManager();
+
+		rttTexture = textureManager->createManual(rttTextureName, Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, Ogre::TEX_TYPE_2D, bufferSize.w, bufferSize.h, 0,
+												  Ogre::PF_R8G8B8A8, Ogre::TU_RENDERTARGET, nullptr, true, AALevel);
+
+		rttTexture->getCustomAttribute("GLID", &renderTextureGLID);
+
+		auto compositor = getOgreRoot()->getCompositorManager2();
+
+		if (!compositor->hasWorkspaceDefinition(stereoscopicCompositor)) compositor->createBasicWorkspaceDef(stereoscopicCompositor, backgroundColor);
+
+		Ogre::uint8 modifierMask, executionMask;
+		Ogre::Vector4 OffsetScale;
+
+		modifierMask = 0x01;
+		executionMask = 0x01;
+		OffsetScale = Ogre::Vector4{ 0, 0, 0.5f, 1 };
+		compositor->addWorkspace(smgr, rttTexture->getBuffer()->getRenderTarget(), stereoCameras[0], stereoscopicCompositor, true, -1, OffsetScale, modifierMask, executionMask);
+
+		modifierMask = 0x02;
+		executionMask = 0x02;
+		OffsetScale = Ogre::Vector4{ 0.5f, 0, 0.5f, 1 };
+		compositor->addWorkspace(smgr, rttTexture->getBuffer()->getRenderTarget(), stereoCameras[1], stereoscopicCompositor, true, -1, OffsetScale, modifierMask, executionMask);
+
+		//Populate OVR structures
+		EyeRenderDesc[0] = ovr_GetRenderDesc(session, ovrEye_Left, hmdDesc.DefaultEyeFov[0]);
+		EyeRenderDesc[1] = ovr_GetRenderDesc(session, ovrEye_Right, hmdDesc.DefaultEyeFov[1]);
+		offset[0] = EyeRenderDesc[0].HmdToEyeOffset;
+		offset[1] = EyeRenderDesc[1].HmdToEyeOffset;
+
+		//Create a layer with our single swaptexture on it. Each side is an eye.
+		layer.Header.Type = ovrLayerType_EyeFov;
+		layer.Header.Flags = 0;
+		layer.ColorTexture[0] = textureSwapchain;
+		layer.ColorTexture[1] = textureSwapchain;
+		layer.Fov[0] = EyeRenderDesc[0].Fov;
+		layer.Fov[1] = EyeRenderDesc[1].Fov;
+
+		//Define the two viewports dimensions :
+		ovrRecti leftRect, rightRect;
+		leftRect.Size = bufferSize;													//same size than the buffer
+		leftRect.Size.w /= 2;
+		//leftRect.Size.w -= (frontierWidth / 2);										//but half the width
+		rightRect = leftRect;														//The two rects are of the same size, but not at the same position
+
+																					//Give OVR the position of the 2 viewports
+		ovrVector2i leftPos, rightPos;
+		leftPos.x = 0;																//The left one start at the bottom left corner
+		leftPos.y = 0;
+		rightPos = leftPos;
+		rightPos.x = bufferSize.w - (bufferSize.w / 2) /*+ (frontierWidth / 2)*/;		//But the right start at half the buffer width
+		leftRect.Pos = leftPos;
+		rightRect.Pos = rightPos;
+
+		//Assign the defined viewport to the layer
+		layer.Viewport[0] = leftRect;
+		layer.Viewport[1] = rightRect;
+
+		//Get the projection matrix for the desired near/far clipping from Oculus and apply them to the eyeCameras
+		//updateProjectionMatrix();
+
+		//Make sure that the perf hud will not show up by himself...
+		//perfHudMode = ovrPerfHud_Off;
+		//ovr_SetInt(Oculus->getSession(), "PerfHudMode", perfHudMode);
+
+		//if (auto status = glewInit() != GLEW_OK)
+		//{
+		//	auto errorText = (char*)glewGetErrorString(status);
+		//	Ogre::LogManager::getSingleton().logMessage(errorText);
+		//	running = false;
+		//}
 	}
+
+private:
+	ovrSession session;
+	ovrHmdDesc hmdDesc;
+	ovrGraphicsLuid luid;
+	ovrSizei bufferSize, hmdSize;
+	ovrMirrorTexture mirrorTexture;
+	ovrLayerEyeFov layer;
+	ovrTextureSwapChain textureSwapchain;
+	std::array<ovrVector3f, 2> offset;
+	ovrPosef pose;
+	ovrTrackingState ts;
+	ovrLayerHeader* layers;
+	ovrSessionStatus sessionStatus;
+	ovrEyeRenderDesc EyeRenderDesc[2];
+
+	double currentFrameDisplayTime;
+	unsigned long long frameCounter;
+	int currentIndex;
+
+	Ogre::TexturePtr rttTexture;
+	static constexpr const char* const rttTextureName{ "RTT_TEX_HMD_BUFFER" };
+
+	//TODO this should be a GLuint. Change that when some GL
+	typedef unsigned int GLuint;
+
+	GLuint renderTextureGLID;
+	GLuint oculusRenderTextureGLID;
 };
