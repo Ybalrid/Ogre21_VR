@@ -37,13 +37,13 @@ OculusVRRenderer::~OculusVRRenderer()
 
 void OculusVRRenderer::renderAndSubmitFrame()
 {
+	updateEvents();
+
 	ovr_GetTextureSwapChainCurrentIndex(session, textureSwapchain, &currentIndex);
 	ovr_GetTextureSwapChainBufferGL(session, textureSwapchain, currentIndex, &oculusRenderTextureGLID);
 
 	//Texture should be written at this point
 	getOgreRoot()->renderOneFrame();
-
-	messagePump();
 
 	glCopyImageSubData(renderTextureGLID, GL_TEXTURE_2D, 0, 0, 0, 0,
 					   oculusRenderTextureGLID, GL_TEXTURE_2D, 0, 0, 0, 0,

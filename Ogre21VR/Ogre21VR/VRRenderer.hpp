@@ -54,7 +54,7 @@ public:
 	///Set the far clipping distance
 	void setFarClippingDistance(double d);
 
-	static void messagePump();
+	void updateEvents();
 	///Return true while the application should be running
 	bool isRunning();
 	///Return the scene manager

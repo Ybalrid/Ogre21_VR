@@ -12,13 +12,11 @@ void win32stdConsole()
 INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR strCmdLine, INT)
 {
 	win32stdConsole();
-	std::unique_ptr<VRRenderer> Renderer = std::make_unique<OculusVRRenderer>();
+	std::unique_ptr<VRRenderer> Renderer = std::make_unique<OculusVRRenderer>(4, 3);
 
 	Renderer->initVRHardware();
-
-	//resources here
-
 	Renderer->declareHlmsLibrary("HLMS");
+
 	Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups();
 
 	while (Renderer->isRunning())

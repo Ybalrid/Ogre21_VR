@@ -7,6 +7,7 @@ auto logToOgre = [](const std::string& message)
 
 VRRenderer::~VRRenderer()
 {
+	glfwTerminate();
 }
 
 VRRenderer::VRRenderer(int openGLMajor, int openGLMinor) :
@@ -32,19 +33,28 @@ VRRenderer::VRRenderer(int openGLMajor, int openGLMinor) :
 
 void VRRenderer::loadOpenGLFunctions()
 {
+	//For some odd version, this thing returns something equivalent to `true` when it fails.
 	if (gl3wInit()) { throw std::runtime_error("call to gl3wInit is unsuccessful"); }
 
 	if (!gl3wIsSupported(4, 3))
 	{
 		logToOgre("Cant call GL4.3 functions... :'(");
-		throw std::runtime_error("Not able to glCopyImageSubData because GL 4.3 is not supported");
+		throw std::runtime_error("Not able to glCopyImageSubData because GL 4.3 is not supported.\n"
+								 "You either need to update your drivers or buy a newer graphics card.\n"
+								 "You need one that is quite fast for VR anyway.");
 	}
 
-	logToOgre(std::string("OpenGL : ") + reinterpret_cast<const char*>(glGetString(GL_VERSION)));
+	const auto getConstChar = [](const GLubyte* bytes) {return reinterpret_cast<const char*>(bytes); };
+
+	logToOgre(std::string("OpenGL   : ") + getConstChar(glGetString(GL_VERSION)));
+	logToOgre(std::string("GLSL     : ") + getConstChar(glGetString(GL_SHADING_LANGUAGE_VERSION)));
+	logToOgre(std::string("Vendor   : ") + getConstChar(glGetString(GL_VENDOR)));
+	logToOgre(std::string("Renderer : ") + getConstChar(glGetString(GL_RENDERER)));
 }
 
 void VRRenderer::initOgre()
 {
+	//Get the good "plugin" file to use according to the compilation mode
 	Ogre::String pluginFile;
 #ifdef _DEBUG
 	pluginFile = "plugins_d.cfg";
@@ -55,6 +65,7 @@ void VRRenderer::initOgre()
 	root->setRenderSystem(root->getRenderSystemByName("OpenGL 3+ Rendering Subsystem"));
 	root->initialise(false);
 
+	//This is needed to send special parameters to Ogre when creating a "render window"
 	Ogre::NameValuePairList windowParameters;
 
 	//Use GLFW to create the window and the opengl context
@@ -63,34 +74,35 @@ void VRRenderer::initOgre()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, glMinor);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+	//In order to create the context, we need to actually create a window on the screen
 	glfwWindow = glfwCreateWindow(width, height, windowName.c_str(), nullptr, nullptr);
+	//Now we can create the current context, running at the OpenGL version that WE CHOOSE
 	glfwMakeContextCurrent(glfwWindow);
 
-	//HGLRC context{ glfwGet
+	//Get what we want out of this environment
 	HGLRC context{ wglGetCurrentContext() };
 	HWND handle{ glfwGetWin32Window(glfwWindow) };
 
+	//populate theses parameters with the values above, as text, even for pointer types
 	windowParameters["externalWindowHandle"] = std::to_string(size_t(handle));
 	windowParameters["externalGLContext"] = std::to_string(size_t(context));
 
+	//Create the window, the scene and the cameras
 	window = root->createRenderWindow(windowName, width, height, false, &windowParameters);
-
 	smgr = root->createSceneManager(Ogre::ST_GENERIC, threads, Ogre::INSTANCING_CULLING_THREADED);
-
 	cameraRig = smgr->getRootSceneNode()->createChildSceneNode();
-
 	attachCameraToRig(stereoCameras[0] = smgr->createCamera("LeftEyeVR"));
 	attachCameraToRig(stereoCameras[1] = smgr->createCamera("RightEyeVR"));
 	attachCameraToRig(monoCamera = smgr->createCamera("MonoCamera"));
 
-	//Some stereo disparity. this value should be changed by the child class anyway
+	//Some stereo disparity. this value should be changed by the child class anyway, but it's nice to be able to test something.
 	stereoCameras[0]->setPosition(-0.063f / 2, 0, 0);
 	stereoCameras[0]->setPosition(+0.063f / 2, 0, 0);
 
+	//Setup the rendering pipeline by creating a basic compositor workspace
 	auto compositor = root->getCompositorManager2();
 	if (!compositor->hasWorkspaceDefinition(monoscopicCompositor))
 		compositor->createBasicWorkspaceDef(monoscopicCompositor, backgroundColor);
-
 	compositor->addWorkspace(smgr, window, monoCamera, monoscopicCompositor, true);
 
 	//everything is right :
@@ -109,9 +121,11 @@ void VRRenderer::setFarClippingDistance(double d)
 	setCorrectProjectionMatrix();
 }
 
-void VRRenderer::messagePump()
+void VRRenderer::updateEvents()
 {
 	Ogre::WindowEventUtilities::messagePump();
+	glfwPollEvents();
+	running = !glfwWindowShouldClose(glfwWindow);
 }
 
 bool VRRenderer::isRunning()

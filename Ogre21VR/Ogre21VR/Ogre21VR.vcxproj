@@ -149,7 +149,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>C:\Oculus\Ogre\ogre\build\sdk\lib\release\opt;C:\Oculus\Ogre\ogre\build\sdk\lib\debug\opt;C:\Oculus\Ogre\ogre\build\sdk\lib\debug;C:\Oculus\Ogre\ogre\build\sdk\lib\release;C:\Oculus\AnnwvynSDK64\OculusSDK\LibOVR\Lib\Windows\x64\Release\VS2015;C:\Oculus\Ogre\ogredeps\build\ogredeps\lib;C:\Oculus\AnnwvynSDK64\glew\lib\Release\x64;C:\Users\arthu\Desktop\glfw-3.2.1\glfw-3.2.1\build\src\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>OgreMain.lib;OgreHlmsPbs.lib;OgreHlmsUnlit.lib;OgreOverlay.lib;OgreMeshLodGenerator.lib;RenderSystem_GL3Plus.lib;LibOVR.lib;%(AdditionalDependencies);ws2_32.lib;Winmm.lib;Setupapi.lib;Imm32.lib;User32.lib;version.lib;opengl32.lib;glfw3.lib</AdditionalDependencies>
+      <AdditionalDependencies>OgreMain.lib;OgreHlmsPbs.lib;OgreHlmsUnlit.lib;OgreOverlay.lib;OgreMeshLodGenerator.lib;RenderSystem_GL3Plus.lib;LibOVR.lib;%(AdditionalDependencies);ws2_32.lib;Winmm.lib;Setupapi.lib;opengl32.lib;glfw3.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
