@@ -32,6 +32,7 @@
 #include <OGRE/Hlms/Unlit/OgreHlmsUnlit.h>
 #include <OGRE/OgreHlmsManager.h>
 #include <OGRE/OgreHlms.h>
+#include <OGRE/OgreItem.h>
 
 ///VRRenderer abstract class
 class VRRenderer

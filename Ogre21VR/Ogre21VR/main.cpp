@@ -17,7 +17,17 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR strCmdLine, INT)
 	Renderer->initVRHardware();
 	Renderer->declareHlmsLibrary("HLMS");
 
+	Ogre::ResourceGroupManager::getSingleton().addResourceLocation(".", "FileSystem");
+
 	Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups();
+
+	//load the V1 mesh file for Suzanne exported from Blender
+	auto SuzanneMesh = Renderer->asV2mesh("Suzanne.mesh");
+	auto smgr = Renderer->getSmgr();
+	auto SuzanneNode = smgr->getRootSceneNode()->createChildSceneNode();
+	auto SuzanneItem = smgr->createItem(SuzanneMesh);
+	SuzanneNode->attachObject(SuzanneItem);
+	SuzanneNode->setPosition(0, 0, -5);
 
 	while (Renderer->isRunning())
 	{

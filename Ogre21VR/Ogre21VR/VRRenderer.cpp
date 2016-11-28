@@ -95,6 +95,11 @@ void VRRenderer::initOgre()
 	attachCameraToRig(stereoCameras[1] = smgr->createCamera("RightEyeVR"));
 	attachCameraToRig(monoCamera = smgr->createCamera("MonoCamera"));
 
+	//Do some minor camera configuration :
+	monoCamera->setNearClipDistance(nearClippingDistance);
+	monoCamera->setFarClipDistance(farClippingDistance);
+	monoCamera->setAutoAspectRatio(true);
+
 	//Some stereo disparity. this value should be changed by the child class anyway, but it's nice to be able to test something.
 	stereoCameras[0]->setPosition(-0.063f / 2, 0, 0);
 	stereoCameras[0]->setPosition(+0.063f / 2, 0, 0);
@@ -113,12 +118,14 @@ void VRRenderer::setNearClippingDistance(double d)
 {
 	nearClippingDistance = d;
 	setCorrectProjectionMatrix();
+	monoCamera->setNearClipDistance(nearClippingDistance);
 }
 
 void VRRenderer::setFarClippingDistance(double d)
 {
 	farClippingDistance = d;
 	setCorrectProjectionMatrix();
+	monoCamera->setFarClipDistance(farClippingDistance);
 }
 
 void VRRenderer::updateEvents()
