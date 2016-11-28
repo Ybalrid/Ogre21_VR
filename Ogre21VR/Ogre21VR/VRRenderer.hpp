@@ -33,29 +33,31 @@
 #include <OGRE/OgreHlmsManager.h>
 #include <OGRE/OgreHlms.h>
 
-//Global function to write to Ogre Log
-
 ///VRRenderer abstract class
 class VRRenderer
 {
 public:
+	///Construct a renderer
+	VRRenderer(int openGLMajor = 4, int openGLMinor = 3);
+	///Destruct a renderer
 	virtual ~VRRenderer();
 
-	VRRenderer(int openGLMajor = 4, int openGLMinor = 3);
-
-	void loadOpenGLFunctions();
-
-	void initOgre();
-
+	///Initialize the VR hardware
 	virtual void initVRHardware() = 0;
+	///Render one frame and submit it to the VR system
 	virtual void renderAndSubmitFrame() = 0;
+	///Get tracking information and move the cameras accordingly
 	virtual void updateTracking() = 0;
 
+	///Set the near clipping distance
 	void setNearClippingDistance(double d);
+	///Set the far clipping distance
 	void setFarClippingDistance(double d);
 
 	static void messagePump();
+	///Return true while the application should be running
 	bool isRunning();
+	///Return the scene manager
 	Ogre::SceneManager* getSmgr();
 
 	decltype(auto) loadV1mesh(Ogre::String meshName)
@@ -89,18 +91,25 @@ public:
 		return mesh;
 	}
 
+	///Declare the HLMS library
 	static void declareHlmsLibrary(const Ogre::String&& path);
+	///Return the root object
 	Ogre::Root* getOgreRoot() const;
+	///This method is called to set the wanted projection matrix
 	virtual void setCorrectProjectionMatrix() = 0;
 
 private:
-
+	///This load OpenGL "core" functions
+	void loadOpenGLFunctions();
+	///Initialize Ogre using a GLFW function
+	void initOgre();
+	///put all the camera attached to one single "camera rig" node
 	void attachCameraToRig(Ogre::Camera* camera);
 
-	std::unique_ptr <Ogre::Root> root;
+	std::unique_ptr<Ogre::Root> root;
 	uint8_t threads;
-	int width;
-	int height;
+	size_t width;
+	size_t height;
 	std::string windowName;
 	static constexpr const char* const SL{ "GLSL" };
 	GLFWwindow* glfwWindow;
