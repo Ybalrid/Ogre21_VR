@@ -35,19 +35,31 @@ OculusVRRenderer::~OculusVRRenderer()
 	ovr_Shutdown();
 }
 
+//int debugFrame = 0;
 void OculusVRRenderer::renderAndSubmitFrame()
 {
+	//debugFrame++;
+	//if (debugFrame == 115)
+	//	rttTexture->getBuffer()->getRenderTarget()->writeContentsToTimestampedFile("debug_", "_.png");
 	updateEvents();
 
 	ovr_GetTextureSwapChainCurrentIndex(session, textureSwapchain, &currentIndex);
 	ovr_GetTextureSwapChainBufferGL(session, textureSwapchain, currentIndex, &oculusRenderTextureGLID);
 
 	//Texture should be written at this point
+	compositorWorkspaces[0]->setEnabled(false);
+	compositorWorkspaces[1]->setEnabled(true);
+	compositorWorkspaces[2]->setEnabled(true);
 	getOgreRoot()->renderOneFrame();
 
 	glCopyImageSubData(renderTextureGLID, GL_TEXTURE_2D, 0, 0, 0, 0,
 					   oculusRenderTextureGLID, GL_TEXTURE_2D, 0, 0, 0, 0,
 					   bufferSize.w, bufferSize.h, 1);
+
+	compositorWorkspaces[0]->setEnabled(true);
+	compositorWorkspaces[1]->setEnabled(false);
+	compositorWorkspaces[2]->setEnabled(false);
+	getOgreRoot()->renderOneFrame();
 
 	layers = &layer.Header;
 	ovr_CommitTextureSwapChain(session, textureSwapchain);
@@ -110,14 +122,14 @@ void OculusVRRenderer::initVRHardware()
 	modifierMask = 0x01;
 	executionMask = 0x01;
 	OffsetScale = Ogre::Vector4{ 0, 0, 0.5f, 1 };
-	compositor->addWorkspace(smgr, rttTexture->getBuffer()->getRenderTarget(), stereoCameras[0],
-							 stereoscopicCompositor, true, -1, OffsetScale, modifierMask, executionMask);
+	compositorWorkspaces[1] = compositor->addWorkspace(smgr, rttTexture->getBuffer()->getRenderTarget(), stereoCameras[0],
+													   stereoscopicCompositor, true, 1, OffsetScale, modifierMask, executionMask);
 
 	modifierMask = 0x02;
 	executionMask = 0x02;
 	OffsetScale = Ogre::Vector4{ 0.5f, 0, 0.5f, 1 };
-	compositor->addWorkspace(smgr, rttTexture->getBuffer()->getRenderTarget(), stereoCameras[1],
-							 stereoscopicCompositor, true, -1, OffsetScale, modifierMask, executionMask);
+	compositorWorkspaces[2] = compositor->addWorkspace(smgr, rttTexture->getBuffer()->getRenderTarget(), stereoCameras[1],
+													   stereoscopicCompositor, true, 2, OffsetScale, modifierMask, executionMask);
 
 	//Populate OVR structures
 	EyeRenderDesc[0] = ovr_GetRenderDesc(session, ovrEye_Left, hmdDesc.DefaultEyeFov[0]);

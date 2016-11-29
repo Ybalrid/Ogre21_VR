@@ -108,7 +108,7 @@ void VRRenderer::initOgre()
 	auto compositor = root->getCompositorManager2();
 	if (!compositor->hasWorkspaceDefinition(monoscopicCompositor))
 		compositor->createBasicWorkspaceDef(monoscopicCompositor, backgroundColor);
-	compositor->addWorkspace(smgr, window, monoCamera, monoscopicCompositor, true);
+	compositorWorkspaces[0] = compositor->addWorkspace(smgr, window, monoCamera, monoscopicCompositor, false, 0, Ogre::Vector4(0, 0, 1, 1), 0x03, 0x03);
 
 	//everything is right :
 	running = true;

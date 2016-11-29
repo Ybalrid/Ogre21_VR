@@ -28,11 +28,13 @@
 #include <OGRE/OgreMesh2.h>
 #include <OGRE/Compositor/OgreCompositorManager2.h>
 #include <OGRE/Compositor/OgreCompositorWorkspaceDef.h>
+#include <OGRE/Compositor/OgreCompositorWorkspace.h>
 #include <OGRE/Hlms/Pbs/OgreHlmsPbs.h>
 #include <OGRE/Hlms/Unlit/OgreHlmsUnlit.h>
 #include <OGRE/OgreHlmsManager.h>
 #include <OGRE/OgreHlms.h>
 #include <OGRE/OgreItem.h>
+#include <OGRE/OgreLight.h>
 
 ///VRRenderer abstract class
 class VRRenderer
@@ -131,6 +133,8 @@ protected:
 
 	double nearClippingDistance;
 	double farClippingDistance;
+
+	Ogre::CompositorWorkspace* compositorWorkspaces[3];
 
 	Ogre::TexturePtr rttTexture;
 };

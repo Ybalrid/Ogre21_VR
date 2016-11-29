@@ -9,10 +9,15 @@ void win32stdConsole()
 	std::cerr.rdbuf(std::cout.rdbuf());
 }
 
+Ogre::Quaternion anim()
+{
+	return Ogre::Quaternion(Ogre::Degree(Ogre::Root::getSingleton().getTimer()->getMilliseconds() / 10), Ogre::Vector3::UNIT_Y);
+}
+
 INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR strCmdLine, INT)
 {
 	win32stdConsole();
-	std::unique_ptr<VRRenderer> Renderer = std::make_unique<OculusVRRenderer>(4, 3);
+	std::unique_ptr<VRRenderer> Renderer = std::make_unique<OculusVRRenderer>(4, 5);
 
 	Renderer->initVRHardware();
 	Renderer->declareHlmsLibrary("HLMS");
@@ -27,10 +32,18 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR strCmdLine, INT)
 	auto SuzanneNode = smgr->getRootSceneNode()->createChildSceneNode();
 	auto SuzanneItem = smgr->createItem(SuzanneMesh);
 	SuzanneNode->attachObject(SuzanneItem);
-	SuzanneNode->setPosition(0, 0, -5);
+	SuzanneNode->setPosition(0, -1, -5);
+
+	auto SunLight = smgr->createLight();
+	auto SunNode = smgr->getRootSceneNode()->createChildSceneNode();
+	SunNode->attachObject(SunLight);
+	SunLight->setType(Ogre::Light::LT_DIRECTIONAL);
+	SunLight->setPowerScale(Ogre::Math::PI * 3);
+	SunLight->setDirection(Ogre::Vector3(-1, -3, -1).normalisedCopy());
 
 	while (Renderer->isRunning())
 	{
+		SuzanneNode->setOrientation(anim());
 		Renderer->updateTracking();
 		Renderer->renderAndSubmitFrame();
 	}
